@@ -1,3 +1,8 @@
+'''
+@author: SongDark
+@brief: test on networks
+'''
+
 from keras.layers import Input
 from keras.models import Model, load_model
 from attention import *

@@ -1,6 +1,6 @@
 # encoding=utf-8
 '''
-@author: geraltxu
+@author: SongDark
 @brief: transformer in keras
 '''
 
