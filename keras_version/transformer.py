@@ -9,6 +9,65 @@ import tensorflow as tf
 from keras.layers import Layer
 from attention import *
 
+
+class MyMaxPool(Layer):
+    def __init__(self, axis=1, **kwargs):
+        self.supports_masking = True
+        self.axis = axis
+        super(MyMaxPool, self).__init__(**kwargs)
+
+    def compute_mask(self, input, input_mask=None):
+        # need not to pass the mask to next layers
+        return None
+
+    def call(self, x, mask=None):
+        if mask is not None:
+            if K.ndim(x)!=K.ndim(mask):
+                mask = K.repeat(mask, x.shape[-1])
+                mask = tf.transpose(mask, [0,2,1])
+            mask = K.cast(mask, K.floatx())
+            x = x * mask
+            return K.max(x, axis=self.axis, keepdims=False)
+        else:
+            return K.max(x, axis=self.axis, keepdims=False)
+
+    def compute_output_shape(self, input_shape):
+        output_shape = []
+        for i in range(len(input_shape)):
+            if i!=self.axis:
+                output_shape.append(input_shape[i])
+        return tuple(output_shape)
+
+
+class MyMeanPool(Layer):
+    def __init__(self, axis=1, **kwargs):
+        self.supports_masking = True
+        self.axis = axis
+        super(MyMeanPool, self).__init__(**kwargs)
+
+    def compute_mask(self, input, input_mask=None):
+        # need not to pass the mask to next layers
+        return None
+
+    def call(self, x, mask=None):
+        if mask is not None:
+            if K.ndim(x)!=K.ndim(mask):
+                mask = K.repeat(mask, x.shape[-1])
+                mask = tf.transpose(mask, [0,2,1])
+            mask = K.cast(mask, K.floatx())
+            x = x * mask
+            return K.sum(x, axis=self.axis) / K.sum(mask, axis=self.axis)
+        else:
+            return K.mean(x, axis=self.axis)
+
+    def compute_output_shape(self, input_shape):
+        output_shape = []
+        for i in range(len(input_shape)):
+            if i!=self.axis:
+                output_shape.append(input_shape[i])
+        return tuple(output_shape)
+
+
 class Transformer(Layer):
     def __init__(self, model_dim=64, n_heads=2, encoder_stack=2, decoder_stack=2,
                  feed_forward_size=64, dropout_rate=0.2, **kwargs):
@@ -18,6 +77,7 @@ class Transformer(Layer):
         self._decoder_stack = decoder_stack
         self._feed_forward_size = feed_forward_size
         self._dropout_rate = dropout_rate
+        self.supports_masking = True 
         super(Transformer, self).__init__(**kwargs)
 
     def build(self, input_shape):
@@ -33,12 +93,6 @@ class Transformer(Layer):
             trainable=True,
             name='weights_decoder'
         )
-        # self.weights_output = self.add_weight(
-        #     shape=(int(input_shape[0][-1]), self._model_dim),
-        #     initializer='glorot_uniform',
-        #     trainable=True,
-        #     name='weights_out'
-        # )
         super(Transformer, self).build(input_shape)
 
     def encode(self, inputs):
@@ -102,12 +156,8 @@ class Transformer(Layer):
     def compute_output_shape(self, input_shape):
         return (input_shape[0][0], input_shape[0][1], self._model_dim)
 
-
-
-
-
-
-
-
-
-
+    def compute_mask(self, inputs, mask=None):
+        if isinstance(mask, list):
+            mask = mask[0]
+        return mask 
+    

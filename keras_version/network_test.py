@@ -153,7 +153,7 @@ def train_on_Transformer():
     from keras.datasets import imdb
     from keras.preprocessing import sequence
     from keras.utils import to_categorical
-    from keras.layers import Embedding, Add, Dropout, Dense, GlobalAveragePooling1D
+    from keras.layers import Embedding, Add, Dropout, Dense, GlobalAveragePooling1D, Masking
     from keras.optimizers import Adam
     from keras.callbacks import EarlyStopping
 
@@ -164,11 +164,12 @@ def train_on_Transformer():
     LATENT_DIM = 128
     FF_UNITS = 256
 
-    input_tensor = Input((MAX_LEN, ), name='input')
-    embeddings = Embedding(VOCAB_SIZE + 1, LATENT_DIM)(input_tensor)
+    input_tensor = Input((None, ), name='input')
+    masked_input = Masking(name='mask')(input_tensor)
+    embeddings = Embedding(VOCAB_SIZE + 1, LATENT_DIM, mask_zero=True, name='emb')(masked_input)
 
-    x = Transformer(model_dim=LATENT_DIM, n_heads=2, encoder_stack=2, decoder_stack=2, feed_forward_size=FF_UNITS)([embeddings, embeddings])
-    x = GlobalAveragePooling1D()(x)
+    att_out = Transformer(model_dim=LATENT_DIM, n_heads=2, encoder_stack=2, decoder_stack=2, feed_forward_size=FF_UNITS)([embeddings, embeddings])
+    x = MyMaxPool(name='maxpool')(att_out)
     x = Dropout(0.2)(x)
     x = Dense(10, activation='relu')(x)
     output_tensor = Dense(2, activation='softmax')(x)
